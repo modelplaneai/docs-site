@@ -1,109 +1,177 @@
 # Modelplane docs site
 
-The Hugo project behind [docs.modelplane.ai](https://docs.modelplane.ai):
-config, layouts, the geekboot theme, the CSS and JavaScript pipelines, and the
-docs MCP server. This repo is the root of the Vercel project.
+The Hugo project behind [docs.modelplane.ai](https://docs.modelplane.ai). This
+repo is the root of the Vercel project.
 
-**None of the prose is here.** Content, the example manifests the pages embed,
-and the API definitions the reference is generated from all live in the
+**The prose is not in this repo.** Content, the example manifests the pages
+embed, and the API definitions the reference is generated from are all in the
 [modelplane](https://github.com/modelplaneai/modelplane) repo, under `docs/`
-and `apis/`. Edit pages there, not here.
+and `apis/`. Edit pages there.
 
-## Versions
+## What is in this repo
 
-Every version is built from this one branch, by one Vercel project. The latest
-release is the site - served bare at the root, with no prefix anywhere in its
-URLs. Every other version is served under its own prefix and carries a banner
-saying it is not the latest.
+| Path | Contents |
+|---|---|
+| `build.sh` | The build. Clones each content branch and runs Hugo against it. |
+| `hugo.toml` | Hugo config, including the mounts that read the content checkout. |
+| `themes/geekboot/` | Templates, SCSS, the JavaScript bundle, static files, and the version list. |
+| `themes/geekboot/data/docversions.json` | The version list. |
+| `utils/` | The webpack build, the link checker, and the DocSearch config. |
+| `api/mcp.js` | The docs MCP server, deployed as a Vercel function. |
+| `vercel.json` | Build command, output directory, and rewrites. |
+
+## URL layout
+
+One Vercel project serves every version. The release named by `latest` in the
+version list is served at the root; the others are served under a prefix.
 
 | URL | Built from | Banner |
 |---|---|---|
-| `/getting-started/` | `@release-0.3` (`latest`) | none |
-| `/main/getting-started/` | `@main` | "unreleased version" |
-| `/v0.2/…`, `/v0.1/…` | `@release-0.2`, `@release-0.1` | "older version" |
+| `/getting-started/` | `release-0.3`, the current `latest` | none |
+| `/main/getting-started/` | `main` | "unreleased version" |
+| `/v0.2/…`, `/v0.1/…` | `release-0.2`, `release-0.1` | "older version" |
 
-So a version's prefix is not a fixed property of it: `0.3` is bare today and
-moves to `/v0.3/` the day `0.4` ships. That is why `latest` lives in the
-version list rather than being baked into a path anywhere.
+A version's prefix depends on which release is `latest`, so it changes over
+time. When `latest` becomes 0.4, the 0.4 build moves to the root and the 0.3
+build moves to `/v0.3/`.
 
-`themes/geekboot/data/docversions.json` is the whole list. `build.sh` clones
-each branch and builds it; the version dropdown and the banners read the same file, so the
-builds, the switcher, and "which one is current" cannot drift.
+## Tasks
 
-### Adding a version
+### Preview the site locally
 
-One line, and nothing else:
+1. Install Hugo extended, at the version pinned near the top of `build.sh`.
+2. Point `modelplane/` at a checkout of the content repo:
 
-```json
-{ "version": "0.4", "path": "v0.4", "branch": "release-0.4" }
-```
+   ```console
+   ln -s ~/src/modelplane modelplane
+   ```
 
-Bump `latest` in the same file if the new one is the latest release - that one
-edit moves it to the root and moves the version it replaces to its own prefix.
-There is no content pin to compute, no hash, no submodule, no flake input, no
-release branch in this repo, and no second Vercel project.
+3. Start the server:
 
-Because nothing is pinned, **publishing new prose is a redeploy** - every build
-reads the tip of the branch it tracks. A theme or layout fix reaches every
-archived version the same way, which per-branch builds could never do.
+   ```console
+   hugo server
+   ```
 
-## Working on it
+Hugo reloads on edits to the checkout, so this is the setup for writing
+content. `build.sh` clones into its own scratch directories and leaves this
+symlink alone.
 
-Point `modelplane/` at a checkout of the content repo and Hugo will live-reload
-against your working copy:
-
-```console
-ln -s ~/src/modelplane modelplane
-hugo server
-```
-
-That needs Hugo **extended**, at the version pinned at the top of `build.sh`
-(the theme's CSS is SCSS, and the templates use recent functions).
-
-Build every version exactly as Vercel does, then check the links:
+### Build every version
 
 ```console
 bash build.sh
 utils/htmltest/check.sh
 ```
 
-`build.sh` fetches its own pinned Hugo on Linux and writes to `public/`. Both
-are what CI runs, so a green CI run is the deploy rehearsed.
+`build.sh` downloads its own pinned Hugo on Linux and writes to `public/`.
+`check.sh` checks internal links in each version and needs `htmltest` on PATH.
+Both are what CI runs.
 
-## How the content gets in
+### Add a version
 
-`hugo.toml` mounts four trees out of `modelplane/`: `docs/content` as content,
-`docs/data` as data, `apis/` (repo root, not under `docs/`) as the API
-reference's data and assets, and `docs/manifests` as the example YAML the
-`manifests` shortcode embeds.
-`build.sh` swaps the checkout under that fixed path once per version, so no
-mount is per-version and no config is templated.
+1. Confirm the branch exists in the modelplane repo. A missing branch fails the
+   whole build, including the versions that would otherwise succeed.
+2. Add one line to `themes/geekboot/data/docversions.json`:
 
-Two wrinkles worth knowing, both from the prose being written as though the
-site sat at the domain root (`/getting-started/`) - which for the latest
-release it does:
+   ```json
+   { "version": "0.4", "path": "v0.4", "branch": "release-0.4" }
+   ```
 
-- **Prefixing.** For any other version, a root-absolute link in the prose would
-  jump out of the version being read. `partials/utils/docurl.html` prefixes
-  them at render time, so nothing has to be back-ported to content on release
-  branches already cut. It is a no-op for the latest release. Note that
-  Hugo's `relURL` only prepends the baseURL subdirectory for a *relative*
-  input - a leading slash makes it a no-op - which is the whole reason that
-  partial exists.
-- **Absolute URLs.** The `kubectl apply -f …` commands are copied out of the
-  page and pasted into a shell, so they cannot be root-relative. `.Permalink`
-  is only absolute when `baseURL` is, and preview deployments build
-  root-relative on purpose (several hostnames reach one deployment, so baking
-  in a single host breaks the assets). `partials/utils/absurl.html` builds
-  those against `params.site`, the canonical root, so the command names the
-  published file whatever renders the page.
+3. If the new version is the current release, set `"latest": "0.4"` in the same
+   file.
+4. Merge. Vercel rebuilds every version.
 
-## Rebuilding the JavaScript bundle
+The version list is the only file to edit. Adding a version does not involve a
+content revision, a checksum, a submodule, or a separate Vercel project.
 
-The bundle under `themes/geekboot/assets/js` is committed, so the site build
-needs no Node step for it. After changing anything under `utils/webpack/src`:
+### Change which release is latest
+
+Set `"latest"` in the version list and merge. That moves the new release to the
+root, moves the previous one to its own prefix, adds the "older version" banner
+to it, and repoints the DocSearch crawl.
+
+### Publish content changes
+
+Nothing in this repo is pinned to a content revision, so each build reads the
+current tip of every branch. A content merge in the modelplane repo therefore
+appears at the next build of this repo, but nothing here triggers that build.
+Until a deploy hook is wired up, run one by pushing to this repo or
+redeploying from the Vercel dashboard.
+
+### Rebuild the JavaScript bundle
+
+The bundle in `themes/geekboot/assets/js` is committed, so the site build runs
+no Node step for it. After editing anything under `utils/webpack/src`:
 
 ```console
-cd utils/webpack && npm ci && npm run prod
+cd utils/webpack
+npm ci
+npm run prod
 git diff ../../themes/geekboot/assets/js
 ```
+
+## How the content is fetched
+
+1. `build.sh` reads `repo` and the version list from
+   `themes/geekboot/data/docversions.json`. This is the only reference to the
+   content repo; the CI workflow has none.
+2. The versions are built concurrently, one background job each. A job gets its
+   own copy of `hugo.toml`, `postcss.config.js`, and `themes/` in a scratch
+   directory, with `node_modules` symlinked, because `hugo.toml` mounts the
+   checkout from the fixed path `modelplane/` and concurrent builds cannot
+   share it.
+3. Each job clones its branch into `modelplane/` inside its own scratch
+   directory, shallow and sparse:
+
+   ```bash
+   git clone --depth 1 --single-branch --branch "$branch" --sparse \
+       "https://github.com/${repo}.git" "$src/modelplane"
+   git -C "$src/modelplane" sparse-checkout set docs/content docs/data docs/manifests apis
+   ```
+
+   It then logs the resolved commit. Nothing here pins a content revision, so
+   the build log is the only record of what was deployed.
+4. `hugo.toml` mounts four paths out of that checkout: `docs/content` as
+   content, `docs/data` as data, `apis/` (at the repo root, not under `docs/`)
+   as the API reference's data and assets, and `docs/manifests` as the example
+   YAML the `manifests` shortcode reads.
+5. Once every job finishes, the finished trees are moved into `public/`: the
+   latest release to the root, the others to their prefixes. A failure in any
+   job prints all the logs and exits without assembling `public/`.
+
+The scratch directories are inside the repo, so the move in step 5 is a rename
+rather than a copy, and they are removed on exit. `.build-*` and `modelplane/`
+are both gitignored.
+
+The clone is anonymous HTTPS. If the modelplane repo ever becomes private, both
+CI and Vercel will need a credential and that URL will need a token.
+
+## URLs in templates
+
+The content is written for a site at the domain root, which affects templates
+in two ways.
+
+**Prefixing.** A root-absolute link in the prose, such as `/getting-started/`,
+is correct for the release at the root and wrong for every other version.
+`partials/utils/docurl.html` adds the current prefix at render time. Content on
+release branches already cut therefore stays as it is. Use the partial for any
+caller-supplied URL. Hugo's `relURL` adds the baseURL subdirectory only to a
+*relative* input, so the partial trims the leading slash first.
+**Absolute URLs.** The `kubectl apply -f …` commands are copied into a shell,
+so they cannot be root-relative. `.Permalink` is absolute only when `baseURL`
+is, and preview builds are root-relative on purpose (see step 3 of `build.sh`).
+`partials/utils/absurl.html` builds these against `params.site`.
+
+## CI
+
+`.github/workflows/ci.yml` runs on pushes to `main` and on every pull request.
+It checks out this repo, runs `build.sh`, then runs the link check. It does not
+deploy.
+
+On `main` it runs after the merge, in parallel with Vercel's build, so it
+cannot block a bad deploy. Content is also not pinned, so a passing run says
+nothing about what the content branches contain when Vercel builds later.
+
+`.github/workflows/docsearch.yml` reindexes the deployed site into Algolia
+daily. It crawls the root and stops at the archived versions' prefixes, so only
+the current release is indexed.

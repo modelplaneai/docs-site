@@ -1,12 +1,13 @@
-# The content checkout build.sh clones, the site it builds, and the tools it
-# fetches. None of it belongs in git.
+# The local content checkout, the site build.sh produces, its per-version
+# scratch directories, and the tools it downloads.
 /modelplane/
 /public/
+/.build-*/
 /node_modules/
 /bin/
+/htmltest
+# Hugo's build artifacts and htmltest's cache.
 /hugo_stats.json
 /.hugo_build.lock
-# Hugo's resource cache, htmltest's binary and its cache.
 /resources/
 /tmp/
-/htmltest
