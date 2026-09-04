@@ -1,11 +1,4 @@
 {{ define "main" }}
-{{/* Reached through the vercel.json rewrite when a version is asked for a page
-     it doesn't have - most often the version dropdown, which deep-links the
-     current path into every version. Bounce to this version's root, which
-     always exists: baseURL carries the version prefix, so site.BaseURL is that
-     root. Scripted rather than a meta refresh so the list below still renders
-     for anyone without JS. */}}
-<script>location.replace({{ site.BaseURL }});</script>
 <div class="bd-layout docs-container">
     <aside class="bd-sidebar">
       <div class="offcanvas-lg offcanvas-start bd-sidebar-container" tabindex="-1" id="bdSidebar" aria-labelledby="bdSidebarOffcanvasLabel">

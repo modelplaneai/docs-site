@@ -1,0 +1,23 @@
+{{- /* Prefix a root-absolute URL with the path prefix this version is served
+       under, e.g. /getting-started/ -> /v0.3/getting-started/.
+
+       The prose and the shortcode params in it are written as though the site
+       sat at the domain root, because that is how the docs were served before
+       every version moved under one domain. relURL is the function that
+       prepends the baseURL's subdirectory, but only for a *relative* input: a
+       leading slash makes it a no-op, which is why the slash is trimmed first.
+       That subtlety is the reason this lives in one partial instead of being
+       spelled out at each call site.
+
+       Passed through untouched: relative paths and bare anchors (already
+       correct), and anything scheme-qualified or protocol-relative (//host). */ -}}
+{{- $u := . -}}
+{{- /* relURL "" is this build's prefix ("/v0.3/", or "/" for a bare `hugo
+       server`). Skipping URLs that already carry it matters because some links
+       arrive here already resolved - a markdown link whose destination came
+       from relref, say - and prefixing those again yields /v0.3/v0.3/. */ -}}
+{{- $prefix := relURL "" -}}
+{{- if and (hasPrefix $u "/") (not (hasPrefix $u "//")) (not (hasPrefix $u $prefix)) -}}
+  {{- $u = relURL (strings.TrimPrefix "/" $u) -}}
+{{- end -}}
+{{- return $u -}}

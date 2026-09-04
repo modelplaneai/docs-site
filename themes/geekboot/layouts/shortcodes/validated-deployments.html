@@ -96,8 +96,7 @@
   <div class="mp-spec-row">
     <div class="mp-spec-label">Manifests</div>
     <div class="mp-spec-val">
-      {{ $branch := .Site.Params.version }}
-      {{ if ne $branch "main" }}{{ $branch = printf "v%s" $branch }}{{ end }}
+      {{ $branch := .Site.Params.branch }}
       {{ $dir := $p.File.BaseFileName }}
       <a class="mp-vchip mp-vchip--code is-on" href="https://github.com/modelplaneai/modelplane/tree/{{ $branch }}/docs/manifests/recipes/{{ $dir }}">docs/manifests/recipes/{{ $dir }}</a>
     </div>

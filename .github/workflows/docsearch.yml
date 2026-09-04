@@ -1,13 +1,12 @@
 name: DocSearch index
 
-# Crawls the live docs site (docs.modelplane.ai) with Algolia's open-source
-# DocSearch scraper and pushes the records into the `modelplane` index that the
-# docs search box queries. Modelplane owns this Algolia app (it is not shared
-# with Crossplane), so the only secret needed is the admin (write) API key.
+# Crawls the live site with Algolia's open-source DocSearch scraper and pushes
+# the records into the `modelplane` index the docs search box queries. It reads
+# the deployed site over HTTP, so it is independent of the build here.
 #
-# Runs on a daily schedule to pick up deployed content changes, and on demand
-# (run it right after a docs deploy for an immediate refresh). The crawler reads
-# the production site over HTTP, so it does not depend on the build here.
+# Only the latest release is indexed - searching the docs should not return
+# four versions of every page. Which release that is comes from
+# data/docversions.json, so cutting a release needs no edit here.
 on:
   workflow_dispatch: {}
   schedule:
@@ -23,10 +22,9 @@ concurrency:
 jobs:
   crawl:
     runs-on: ubuntu-24.04
-    # Secrets aren't available in if expressions (and the env context isn't
-    # available in job-level ones), so mirror the secret into the job env and
-    # gate the steps on it. Forks don't have the secret, so their scheduled
-    # runs skip the crawl instead of failing.
+    # Secrets are not available in job-level `if` expressions, so mirror the
+    # key into the job env and gate the steps on it. Forks have no secret, so
+    # their scheduled runs skip the crawl instead of failing.
     env:
       ALGOLIA_ADMIN_KEY: ${{ secrets.ALGOLIA_ADMIN_KEY }}
     steps:
@@ -34,11 +32,19 @@ jobs:
         if: env.ALGOLIA_ADMIN_KEY != ''
         uses: actions/checkout@v4
 
-      - name: Crawl docs.modelplane.ai into Algolia
+      - name: Crawl the latest release into Algolia
         if: env.ALGOLIA_ADMIN_KEY != ''
         run: |
+          config=$(node -e '
+            const d = require("./data/docversions.json");
+            const c = require("./utils/docsearch/config.json");
+            const p = d.versions.find(v => v.version === d.latest).path;
+            c.start_urls = [`https://docs.modelplane.ai/${p}/`];
+            c.sitemap_urls = [`https://docs.modelplane.ai/${p}/sitemap.xml`];
+            process.stdout.write(JSON.stringify(c));
+          ')
           docker run --rm \
             -e APPLICATION_ID=CQDMTRM1TJ \
             -e API_KEY="$ALGOLIA_ADMIN_KEY" \
-            -e "CONFIG=$(jq -r tostring utils/docsearch/config.json)" \
+            -e "CONFIG=$config" \
             algolia/docsearch-scraper

@@ -2,12 +2,11 @@ name: CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request: {}
   workflow_dispatch: {}
 
-# Cancel in-progress runs for the same PR. Runs on main are never cancelled.
+# Cancel superseded runs for the same PR. Runs on main are never cancelled.
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
@@ -16,31 +15,22 @@ permissions:
   contents: read
 
 jobs:
-  check:
+  build:
     runs-on: ubuntu-24.04
-
     steps:
-      # The site has no content without the modelplane submodule, and the nix
-      # build refuses to run with it empty.
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
+      - uses: actions/checkout@v4
 
-      - name: Install Nix
-        uses: cachix/install-nix-action@v31
-        with:
-          extra_nix_config: log-lines = 500
+      # build.sh is the buildCommand Vercel runs, so this is the deploy
+      # rehearsed rather than a separate approximation of it. It clones the
+      # content branches itself; nothing else to check out.
+      - name: Build every version
+        run: bash build.sh
 
-      # Cache Nix store paths in the GitHub Actions cache so builds reuse work
-      # across runs. use-flakehub is off so artifacts stay in the Actions cache
-      # rather than going to a third party.
-      - name: Cache Nix store
-        uses: DeterminateSystems/magic-nix-cache-action@908b263ff629f4cc17666315b7fd3ec127c6244d # v14
-        with:
-          use-flakehub: false
-
-      # Nix only sees a flake's submodules when asked, and without them the
-      # check builds an empty site.
-      - name: Check
-        run: nix flake check '.?submodules=1' --print-build-logs
+      # Internal links only (CheckExternal is false), so no network and no
+      # flaking on someone else's downtime. The build above is root-relative
+      # outside production, which is what htmltest can resolve.
+      - name: Check internal links
+        run: |
+          curl -fsSL https://github.com/wjdp/htmltest/releases/download/v0.17.0/htmltest_0.17.0_linux_amd64.tar.gz \
+            | tar -xz htmltest
+          PATH="$PWD:$PATH" utils/htmltest/check.sh

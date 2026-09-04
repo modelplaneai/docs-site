@@ -39,7 +39,7 @@
   </aside>
 
   <main class="bd-main order-1">
-    {{ $hasVersions := hugo.Data.versions.versions }}
+    {{ $hasVersions := hugo.Data.docversions.versions }}
     {{ if or $ref $hasVersions }}
     <header class="doc-content-nav">
       {{ if $ref }}
@@ -175,8 +175,7 @@
               </div>
               <div>
                 <svg class="bi" width="1em" height="1em"><use xlink:href="#github"/></svg>
-                {{- $branch := .Site.Params.version -}}
-                {{- if ne $branch "main" }}{{- $branch = printf "v%s" $branch -}}{{- end -}}
+                {{- $branch := .Site.Params.branch -}}
                 <span class="ps-1"><a href="{{printf "https://github.com/modelplaneai/modelplane/tree/%s/docs/content/%s" $branch .Page.File.Path}}">View page source</a></span>
               </div>
             </div>

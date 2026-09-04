@@ -15,4 +15,4 @@
   "ascend"   "Ascend" -}}
 {{- $logo := index $logos $key -}}
 {{- $label := index $labels $key | default (.Get 0) -}}
-{{- with $logo -}}<span class="mp-accel"><img class="mp-accel-logo" src="{{ . }}" alt="{{ $label }}" aria-hidden="true">{{ $label }}</span>{{- else -}}<span class="mp-accel mp-accel--text">{{ $label }}</span>{{- end -}}
+{{- with $logo -}}<span class="mp-accel"><img class="mp-accel-logo" src="{{ partial "utils/docurl" . }}" alt="{{ $label }}" aria-hidden="true">{{ $label }}</span>{{- else -}}<span class="mp-accel mp-accel--text">{{ $label }}</span>{{- end -}}

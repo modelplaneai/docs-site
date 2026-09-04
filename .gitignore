@@ -1,12 +1,12 @@
-# Hugo build output and caches
-public/
-resources/
-.hugo_build.lock
-hugo_stats.json
-
-# Nix build symlink and direnv cache
-result
-.direnv
-
-# npm
-node_modules/
+# The content checkout build.sh clones, the site it builds, and the tools it
+# fetches. None of it belongs in git.
+/modelplane/
+/public/
+/node_modules/
+/bin/
+/hugo_stats.json
+/.hugo_build.lock
+# Hugo's resource cache, htmltest's binary and its cache.
+/resources/
+/tmp/
+/htmltest

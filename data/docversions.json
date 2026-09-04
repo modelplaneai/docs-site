@@ -1,0 +1,10 @@
+{
+  "repo": "modelplaneai/modelplane",
+  "latest": "0.3",
+  "versions": [
+    { "version": "main", "path": "main", "branch": "main" },
+    { "version": "0.3", "path": "v0.3", "branch": "release-0.3" },
+    { "version": "0.2", "path": "v0.2", "branch": "release-0.2" },
+    { "version": "0.1", "path": "v0.1", "branch": "release-0.1" }
+  ]
+}

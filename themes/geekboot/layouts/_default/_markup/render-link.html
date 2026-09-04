@@ -1,0 +1,15 @@
+{{- /* The prose is written for a site served at the domain root: links read
+       "/getting-started/", not "/v0.3/getting-started/". Every version here is
+       served under its own path prefix instead, and Goldmark emits a markdown
+       destination verbatim, so a root-absolute link would jump out of the
+       version the reader is in - to a path that exists for no version at all.
+
+       relURL prepends the current build's baseURL path, so one hook fixes
+       every such link in every version, including release branches cut before
+       the site moved to path prefixes. Nothing has to be back-ported to the
+       content, which is the whole point.
+
+       Left alone: relative links and bare anchors (already correct), and
+       anything scheme-qualified or protocol-relative (//host/path). */ -}}
+{{- $dest := partial "utils/docurl" .Destination -}}
+<a href="{{ $dest | safeURL }}"{{ with .Title }} title="{{ . }}"{{ end }}>{{ .Text }}</a>

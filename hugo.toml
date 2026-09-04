@@ -1,18 +1,9 @@
 baseURL = "/"
-# Each version is served under its own path prefix (/v0.3/, /main/) from one
-# Vercel project, so a root-relative link written as /getting-started/ would
-# escape the version it was written for. canonifyURLs resolves every such link
-# against baseURL, which already carries the prefix. It is what makes archived
-# versions work at all: their content is frozen at a release commit and can't
-# be edited to know about prefixes. (relativeURLs looks like the same fix but
-# breaks the asset pipeline's URLs - it fails htmltest with thousands of
-# errors.) See nix/docs.nix.
-canonifyURLs = true
 locale = "en-us"
 title = "Modelplane Docs"
 theme = "geekboot"
 enableRobotsTXT = true
-enableGitInfo = true
+enableGitInfo = false
 
 # Term pages power the recipe catalog facets; taxonomy (index-of-terms) pages
 # stay disabled — the catalog page on /recipes/ fills that role.
@@ -85,46 +76,49 @@ ignoreFiles = ["themes/geekboot/content/.*", "README.md"]
     lineNumbersInTable = false
 
 [module]
-  [module.hugoVersion]
-    min = "0.158.0"
-
+  # None of the prose is in this repo. build.sh clones the modelplane branch
+  # each version tracks into modelplane/, and every mount below reads from
+  # there, so one branch of this repo builds every version. To work against a
+  # checkout locally:
+  #   ln -s ~/src/modelplane modelplane && hugo server
   [[module.mounts]]
     source = "modelplane/docs/content"
     target = "content"
   [[module.mounts]]
-    source = "assets"
-    target = "assets"
-  [[module.mounts]]
     source = "modelplane/docs/content"
     target = "assets/content"
     files = ["**/**.png", "**/**.jpg", "**/**.jpeg", "**/**.gif"]
-  # Defining any data mount below suppresses Hugo's default data mount, so mount
-  # the local data dir explicitly (holds apigroups.yaml, which groups the API
-  # reference). Accessible as hugo.Data.apigroups.
+  # Defining any data mount suppresses Hugo's default one, so mount both
+  # halves explicitly: the version list lives here (data/docversions.json), while
+  # apigroups.yaml and recipes.yaml belong with the content. Mounts to the same
+  # target merge, so both land in hugo.Data.
   [[module.mounts]]
     source = "data"
     target = "data"
-  # Mount the APIs directory as Hugo data so the reference partials can read
-  # definition.yaml files without a separate generation step.
-  # Accessible as hugo.Data.apis.crds.<plural>.definition
+  # Both halves land in hugo.Data, so a file here and a file there sharing a
+  # basename would collide. Ours is docversions.json precisely because the
+  # content repo still ships a stale data/versions.yaml - the old
+  # per-subdomain list - and always will on release branches already cut.
+  [[module.mounts]]
+    source = "modelplane/docs/data"
+    target = "data"
+  # The CRDs the API reference is generated from, as Hugo data:
+  # hugo.Data.apis.crds.<plural>.definition
   [[module.mounts]]
     source = "modelplane/apis"
     target = "data/apis/crds"
-  # Also mount it as assets so the Markdown output can emit the raw definition.yaml
-  # verbatim (comments preserved) via resources.Get "apis/<plural>/definition.yaml".
+  # Also as assets, so the Markdown output can emit definition.yaml verbatim,
+  # comments preserved, via resources.Get "apis/<plural>/definition.yaml".
   [[module.mounts]]
     source = "modelplane/apis"
     target = "assets/apis"
-  # Mount the manifests directory as assets so the manifests shortcode can read
-  # raw YAML (preserving comments) via resources.Get "examples/<path>.yaml". The
-  # files live under docs/manifests/<section>/, one subtree per docs section.
+  # The example manifests the manifests shortcode embeds as raw YAML via
+  # resources.Get "examples/<path>.yaml".
   [[module.mounts]]
     source = "modelplane/docs/manifests"
     target = "assets/examples"
 
 [security]
-  [security.funcs]
-    getenv = ["^CONTEXT", "^REVIEW_ID", "^VERCEL_ENV"]
   [security.node.permissions]
     # Hugo runs Node tools under Node's permission model, which blocks
     # native addons unless the tool is listed here. The PostCSS pipeline
@@ -135,11 +129,14 @@ ignoreFiles = ["themes/geekboot/content/.*", "README.md"]
 [params]
   docs = true
   description = "Modelplane documentation."
-  # "main" on the dev branch; "X.Y" (e.g. "0.1") on release branches.
+  # Which version this build is. build.sh sets all three per version from
+  # data/versions.json; these are the defaults a bare `hugo server` uses.
+  # version: "main", or "X.Y" for a release.  path: the URL prefix it is
+  # served under.  branch: the modelplane branch it was built from, used by
+  # the "view page source" and manifest links.
   version = "main"
-  # Latest stable release. Drives the version dropdown and the "not the latest
-  # release" banners; the apex (docs.modelplane.ai) is this release's own build.
-  latest = "0.3"
+  path = "main"
+  branch = "main"
   [params.anchors]
     min = 2
     max = 5

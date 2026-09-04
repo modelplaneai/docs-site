@@ -2,9 +2,8 @@
 //
 // A zero-dependency Model Context Protocol server that lets AI assistants
 // search and read the Modelplane documentation. It implements the Streamable
-// HTTP transport (JSON-RPC 2.0 over POST) by hand so it ships as a single
-// Vercel function with no npm install: the docs site builds in a sandboxed Nix
-// derivation with `installCommand: true`, which skips dependency installation.
+// HTTP transport (JSON-RPC 2.0 over POST) by hand, so it ships as a single
+// Vercel function with no dependencies of its own.
 //
 // The corpus is the llms.json the Hugo build publishes. We fetch it once per
 // cold start, chunk every page by heading, and rank chunks with BM25. The
@@ -12,6 +11,7 @@
 // does the semantic reasoning over the candidates we return. See
 // content/ai-tools.md for the user-facing connection guide.
 
+// The apex copy is the latest release's, published there by build.sh.
 const CORPUS_URL =
   process.env.DOCS_LLMS_JSON_URL || "https://docs.modelplane.ai/llms.json";
 const PROTOCOL_VERSION = "2025-06-18";

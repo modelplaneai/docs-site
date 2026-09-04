@@ -1,22 +1,14 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "bash vercel-build.sh",
-  "outputDirectory": "public",
-  "installCommand": "true",
   "framework": null,
+  "buildCommand": "bash build.sh",
+  "outputDirectory": "public",
   "rewrites": [
-    {
-      "source": "/mcp",
-      "destination": "/api/mcp"
-    },
+    { "source": "/mcp", "destination": "/api/mcp" },
     {
       "source": "/:version(main|v\\d+\\.\\d+)/:path*",
       "destination": "/:version/404.html"
     }
   ],
-  "functions": {
-    "api/mcp.js": {
-      "maxDuration": 15
-    }
-  }
+  "functions": { "api/mcp.js": { "maxDuration": 15 } }
 }

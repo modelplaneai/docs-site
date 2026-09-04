@@ -1,10 +1,14 @@
 {
   "index_name": "modelplane",
-  "start_urls": ["https://docs.modelplane.ai/"],
-  "sitemap_urls": ["https://docs.modelplane.ai/sitemap.xml"],
+  "start_urls": [
+    "https://docs.modelplane.ai/"
+  ],
+  "sitemap_urls": [
+    "https://docs.modelplane.ai/sitemap.xml"
+  ],
   "sitemap_alternate_links": true,
   "stop_urls": [
-    "docs.modelplane.ai/recipes/(vendor|cloud)/"
+    "docs.modelplane.ai/[^/]+/recipes/(vendor|cloud)/"
   ],
   "selectors": {
     "lvl0": {
@@ -21,6 +25,11 @@
   },
   "strip_chars": " .,;:#",
   "custom_settings": {
-    "attributesForFaceting": ["language", "version", "type", "lang"]
+    "attributesForFaceting": [
+      "language",
+      "version",
+      "type",
+      "lang"
+    ]
   }
 }

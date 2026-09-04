@@ -1,81 +1,83 @@
 # Modelplane docs site
 
 The Hugo project behind [docs.modelplane.ai](https://docs.modelplane.ai):
-config, layouts, the geekboot theme, and the CSS and JavaScript pipelines.
+config, layouts, the geekboot theme, the CSS and JavaScript pipelines, and the
+docs MCP server. This repo is the root of the Vercel project.
 
-The prose is not here. Content, the example manifests the pages embed, and the
-API definitions the reference is generated from all live in the
-[modelplane](https://github.com/tr0njavolta/mp-fork) repo, checked out as the
-`modelplane/` submodule and mounted into the site by `hugo.toml`. Edit pages
-there, not here.
-
-## Working on it
-
-Clone with the submodule, or init it after the fact:
-
-```console
-git clone --recurse-submodules https://github.com/tr0njavolta/modelplane-docs.git
-# or
-git submodule update --init
-```
-
-Serve locally with live reload:
-
-```console
-nix run '.?submodules=1#serve'
-```
-
-Build the production site and run the checks CI runs:
-
-```console
-nix build '.?submodules=1#site'
-nix flake check '.?submodules=1'
-```
-
-Nix ignores a flake's submodules unless asked, so `?submodules=1` is not
-optional. Without it the build fails with an empty-submodule error rather than
-publishing a site with no pages.
+**None of the prose is here.** Content, the example manifests the pages embed,
+and the API definitions the reference is generated from all live in the
+[modelplane](https://github.com/modelplaneai/modelplane) repo, under `docs/`
+and `apis/`. Edit pages there, not here.
 
 ## Versions
 
-Every version of the docs is built from this one branch and served from one
-Vercel project, each under its own path prefix:
+Every version is built from this one branch, by one Vercel project, and served
+under its own path prefix:
 
-| Path | Content comes from |
+| Path | Built from |
 |---|---|
-| `/main/` | the `modelplane/` submodule |
-| `/v0.3/`, `/v0.2/` | the `content-0-3` / `content-0-2` flake inputs |
+| `/main/` | `modelplaneai/modelplane@main` |
+| `/v0.3/`, `/v0.2/`, `/v0.1/` | `@release-0.3`, `@release-0.2`, `@release-0.1` |
 
-`data/versions.json` is the list, read by both `nix/docs.nix` and the version
-dropdown so they can't drift. The site root redirects to `latest`.
+The apex redirects to whichever version is `latest`.
 
-There are no release branches in this repo and no per-version Vercel project.
-Adding a version is one flake input plus one line in `data/versions.json`:
+`data/docversions.json` is the whole list. `build.sh` clones each branch and
+builds it; the version dropdown reads the same file, so the builds and the
+switcher cannot drift.
 
-```bash
-nix flake lock --override-input content-0-4 \
-  github:tr0njavolta/mp-content-test/release-0.4
+### Adding a version
+
+One line, and nothing else:
+
+```json
+{ "version": "0.4", "path": "v0.4", "branch": "release-0.4" }
 ```
 
-A theme or layout fix therefore reaches every archived version on the next
-build, which per-branch builds could never do.
+Bump `latest` in the same file if the new one is the latest release. There is
+no content pin to compute, no hash, no submodule, no flake input, no release
+branch in this repo, and no second Vercel project.
 
-## Pulling in content changes
+Because nothing is pinned, **publishing new prose is a redeploy** - every build
+reads the tip of the branch it tracks. A theme or layout fix reaches every
+archived version the same way, which per-branch builds could never do.
 
-`.github/workflows/content.yml` bumps every pin - the submodule for main, and
-each archived version's flake input - to the tip of the branch it tracks, and
-opens a pull request. Merging it is what publishes. Run it early with:
+## Working on it
 
-```bash
-gh workflow run content.yml --repo tr0njavolta/mp-docs-test
+Point `modelplane/` at a checkout of the content repo and Hugo will live-reload
+against your working copy:
+
+```console
+ln -s ~/src/modelplane modelplane
+hugo server
 ```
 
-By hand:
+That needs Hugo **extended**, at the version pinned at the top of `build.sh`
+(the theme's CSS is SCSS, and the templates use recent functions).
 
-```bash
-git submodule update --remote modelplane   # main
-nix flake update content-0-3               # one archived version
+Build every version exactly as Vercel does, then check the links:
+
+```console
+bash build.sh
+utils/htmltest/check.sh
 ```
+
+`build.sh` fetches its own pinned Hugo on Linux and writes to `public/`. Both
+are what CI runs, so a green CI run is the deploy rehearsed.
+
+## How the content gets in
+
+`hugo.toml` mounts four trees out of `modelplane/`: `docs/content` as content,
+`docs/data` as data, `apis/` (repo root, not under `docs/`) as the API
+reference's data and assets, and `docs/manifests` as the example YAML the
+`manifests` shortcode embeds.
+`build.sh` swaps the checkout under that fixed path once per version, so no
+mount is per-version and no config is templated.
+
+One wrinkle worth knowing: the prose is written as though the site sat at the
+domain root (`/getting-started/`), because it used to. Every root-absolute link
+and shortcode URL is prefixed with the current version at render time by
+`partials/utils/docurl.html`. Nothing has to be back-ported to content on
+release branches already cut - which is the point.
 
 ## Rebuilding the JavaScript bundle
 
@@ -83,6 +85,6 @@ The bundle under `themes/geekboot/assets/js` is committed, so the site build
 needs no Node step for it. After changing anything under `utils/webpack/src`:
 
 ```console
-nix run '.?submodules=1#generate'
-git diff themes/geekboot/assets/js
+cd utils/webpack && npm ci && npm run prod
+git diff ../../themes/geekboot/assets/js
 ```

@@ -20,6 +20,7 @@
     accent optional  color the title and arrow (platform = cyan, developer = purple)
 */}}
 {{- $href := or (.Get "href") (.Get "link") -}}
+{{- $href = partial "utils/docurl" $href -}}
 {{- $icon := .Get "icon" -}}
 {{- $accent := .Get "accent" -}}
 {{- $ext := strings.HasPrefix $href "http" -}}
