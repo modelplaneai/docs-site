@@ -12,29 +12,19 @@
 {
   description = "Modelplane documentation site";
 
-  # Archived doc versions. Each is a pinned checkout of the content repo's
-  # matching release branch, and flake.lock is the pin - `nix flake update
-  # content-0-3` moves one, `nix flake update` moves them all. Adding a version
-  # is one input here and one entry in data/versions.json; there are no release
-  # branches in this repo and no per-version Vercel project.
+  # Nothing here is per-version. Archived doc versions are pinned in
+  # data/versions.json (rev + hash per release branch), which is also the file
+  # Hugo's version dropdown reads, so adding a release touches that one file
+  # and nothing else - no input here, no lockfile entry, no Vercel project.
   #
   # main's content comes from the modelplane/ submodule instead, so `hugo
   # server` live-reloads against a working copy you can edit.
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
-
-    content-0-3 = {
-      url = "github:tr0njavolta/mp-content-test/release-0.3";
-      flake = false;
-    };
-    content-0-2 = {
-      url = "github:tr0njavolta/mp-content-test/release-0.2";
-      flake = false;
-    };
   };
 
   outputs =
-    { self, nixpkgs, ... }@inputs:
+    { self, nixpkgs, ... }:
     let
       supportedSystems = [
         "x86_64-linux"
@@ -52,7 +42,7 @@
           }
         );
 
-      docsFor = pkgs: import ./nix/docs.nix { inherit pkgs self inputs; };
+      docsFor = pkgs: import ./nix/docs.nix { inherit pkgs self; };
     in
     {
       packages = forAllSystems (

@@ -1,7 +1,8 @@
 name: Update content
 
 # Bump every version's content pin to the tip of the branch it tracks: the
-# modelplane submodule for main, and one flake input per archived version.
+# modelplane submodule for main, and the rev/hash in data/versions.json for
+# each archived version.
 # Merging the resulting commit is what ships new prose - this repo pins content
 # commits, so content changes are invisible to the site until the pins move.
 #
@@ -11,7 +12,7 @@ name: Update content
 #
 # Runs daily and on demand. The content repo can also trigger it right after a
 # merge:
-#   gh workflow run content.yml --repo tr0njavolta/modelplane-docs
+#   gh workflow run content.yml --repo modelplaneai/docs-site
 on:
   workflow_dispatch: {}
   schedule:
@@ -43,17 +44,25 @@ jobs:
         run: |
           git submodule update --remote modelplane
 
-          # Every archived version is a flake input named content-<version>.
-          # Reading them out of the lock file keeps this job correct when a
-          # version is added, with no edit here.
-          archived=$(jq -r '.nodes.root.inputs | keys[]
-            | select(startswith("content-"))' flake.lock)
-          if [ -n "$archived" ]; then
-            # shellcheck disable=SC2086
-            nix flake update $archived
-          fi
+          # Every archived version records the branch it tracks plus the rev
+          # and hash it is pinned at, so this job reads the version list rather
+          # than being edited when a release is added. An entry with a branch
+          # but no rev - what you get from adding a release by hand - is filled
+          # in here on the next run.
+          repo=$(jq -r .repo data/versions.json)
+          for branch in $(jq -r '.versions[] | select(.branch) | .branch' data/versions.json); do
+            rev=$(git ls-remote "https://github.com/$repo" "refs/heads/$branch" | cut -f1)
+            [ -n "$rev" ] || { echo "no such branch: $branch" >&2; exit 1; }
+            hash=$(nix hash convert --hash-algo sha256 --to sri "$(
+              nix-prefetch-url --unpack --type sha256 \
+                "https://github.com/$repo/archive/$rev.tar.gz" | tail -1)")
+            jq --arg b "$branch" --arg r "$rev" --arg h "$hash" \
+              '(.versions[] | select(.branch == $b)) |= (.rev = $r | .hash = $h)' \
+              data/versions.json > versions.tmp
+            mv versions.tmp data/versions.json
+          done
 
-          if git diff --quiet -- modelplane flake.lock; then
+          if git diff --quiet -- modelplane data/versions.json; then
             echo "Every version is already at the tip of its branch."
             exit 0
           fi

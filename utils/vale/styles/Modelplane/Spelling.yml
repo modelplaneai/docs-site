@@ -1,0 +1,14 @@
+# Adapted from https://gitlab.com/gitlab-org/gitlab/-/blob/master/doc/.vale/gitlab/Spelling.yml
+extends: spelling
+message: 'Spelling check: "%s"?'
+level: error
+custom: true
+filters:
+  - v\d
+  - v\d\.[x\d]\d?
+  - v\dalpha\d
+  - v\dbeta\d
+  - \/.*
+  - '#\w+'
+  - \d+\.\d+[BbMmKkTt]
+  - \w+'s

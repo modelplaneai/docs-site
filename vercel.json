@@ -4,6 +4,19 @@
   "outputDirectory": "public",
   "installCommand": "true",
   "framework": null,
-  "rewrites": [{ "source": "/mcp", "destination": "/api/mcp" }],
-  "functions": { "api/mcp.js": { "maxDuration": 15 } }
+  "rewrites": [
+    {
+      "source": "/mcp",
+      "destination": "/api/mcp"
+    },
+    {
+      "source": "/:version(main|v\\d+\\.\\d+)/:path*",
+      "destination": "/:version/404.html"
+    }
+  ],
+  "functions": {
+    "api/mcp.js": {
+      "maxDuration": 15
+    }
+  }
 }

@@ -2,6 +2,11 @@ DirectoryPath: "docs/public"
 IgnoreInternalEmptyHash: true
 CheckExternal: false
 IgnoreURLs:
+  # The version dropdown deep-links the current path into every other version.
+  # Whether that page exists there is only knowable at request time, so the
+  # vercel.json rewrite resolves a miss to that version's root and htmltest
+  # skips these rather than failing on a link the edge handles.
+  - "^(\\.\\./)+(main|v[0-9.]+)/"
   - "/site.webmanifest"
   - "/safari-pinned-tab.svg"
   - "github.com/modelplaneai/modelplane/issues/new.*"

@@ -23,7 +23,6 @@
 {
   pkgs,
   self,
-  inputs,
 }:
 let
   # Just the two files npm reads, so an edit to the site or the content
@@ -90,19 +89,26 @@ let
   versionsData = builtins.fromJSON (builtins.readFile ../data/versions.json);
   latest = versionsData.latest;
   latestPath =
-    (pkgs.lib.findFirst (v: v.version == latest) (builtins.head versionsData.versions)
-      versionsData.versions
-    ).path;
+    (pkgs.lib.findFirst (
+      v: v.version == latest
+    ) (builtins.head versionsData.versions) versionsData.versions).path;
 
   # main builds from the modelplane/ submodule, so `hugo server` live-reloads
-  # against a working copy. Every archived version builds from its pinned flake
-  # input - "0.3" from content-0-3, and so on - so flake.lock is the pin.
+  # against a working copy. Every archived version is fetched at the rev and
+  # hash recorded next to it in data/versions.json, so that one file is the
+  # whole pin: adding a release is one entry there and nothing else. A flake
+  # input has to be written out statically, so deriving one per version is
+  # impossible - that is why the pins live in the version list instead.
   contentFor =
-    version:
-    if version == "main" then
+    v:
+    if v.version == "main" then
       null
     else
-      inputs."content-${builtins.replaceStrings [ "." ] [ "-" ] version}";
+      pkgs.fetchFromGitHub {
+        owner = builtins.elemAt (pkgs.lib.splitString "/" versionsData.repo) 0;
+        repo = builtins.elemAt (pkgs.lib.splitString "/" versionsData.repo) 1;
+        inherit (v) rev hash;
+      };
 
   # Hugo joins baseURL to paths verbatim, so a missing trailing slash silently
   # produces ".../comv0.3/".
@@ -174,12 +180,14 @@ let
     { name, root }:
     let
       copy = v: ''
-        cp -r ${mkSite {
-          name = "${name}-${v.path}";
-          baseURL = "${withSlash root}${v.path}/";
-          version = v.version;
-          content = contentFor v.version;
-        }} $out/${v.path}
+        cp -r ${
+          mkSite {
+            name = "${name}-${v.path}";
+            baseURL = "${withSlash root}${v.path}/";
+            version = v.version;
+            content = contentFor v;
+          }
+        } $out/${v.path}
       '';
     in
     pkgs.runCommand name { } ''

@@ -1,29 +1,45 @@
 baseURL = "/"
-# Each version is served under its own path prefix (/v0.3/, /main/), so a
-# root-relative link written as /getting-started/ would escape the version it
-# was written for. canonifyURLs resolves every such link against baseURL, which
-# already carries the prefix. It is what makes archived versions work at all:
-# their content is frozen at a release commit and can't be edited to know about
-# prefixes. (relativeURLs looks like the same fix but breaks the asset
-# pipeline's URLs - it fails htmltest with thousands of errors.) See
-# nix/docs.nix.
+# Each version is served under its own path prefix (/v0.3/, /main/) from one
+# Vercel project, so a root-relative link written as /getting-started/ would
+# escape the version it was written for. canonifyURLs resolves every such link
+# against baseURL, which already carries the prefix. It is what makes archived
+# versions work at all: their content is frozen at a release commit and can't
+# be edited to know about prefixes. (relativeURLs looks like the same fix but
+# breaks the asset pipeline's URLs - it fails htmltest with thousands of
+# errors.) See nix/docs.nix.
 canonifyURLs = true
-languageCode = "en-us"
+locale = "en-us"
 title = "Modelplane Docs"
 theme = "geekboot"
 enableRobotsTXT = true
-# Git metadata for last-modified dates. Content lives in the modelplane
-# submodule, which this repo's git history doesn't cover, so pages get no
-# git dates. Production builds already set HUGO_ENABLEGITINFO=false.
 enableGitInfo = true
 
-disableKinds = ["taxonomy", "term"]
+# Term pages power the recipe catalog facets; taxonomy (index-of-terms) pages
+# stay disabled — the catalog page on /recipes/ fills that role.
+disableKinds = ["taxonomy"]
+# Keep term titles exactly as written in front matter ("vLLM", not "VLLM").
+capitalizeListTitles = false
 ignoreFiles = ["themes/geekboot/content/.*", "README.md"]
+
+# Only vendors and clouds are taxonomies — their term pages are the browse
+# targets on /recipes/. GPU, engine, and technique facets are plain front
+# matter rendered inline; they get no term pages until something links there.
+[taxonomies]
+  vendor = "vendors"
+  cloud  = "clouds"
+
+# Nest term pages under the Recipes section so facet URLs read as part of the
+# catalog: /recipes/cloud/nebius/ lists every recipe that runs on Nebius.
+[permalinks]
+  [permalinks.term]
+    vendors = "/recipes/vendor/:slug/"
+    clouds  = "/recipes/cloud/:slug/"
 
 [outputs]
   home = ["html", "llms", "llmsfull", "llmsjson"]
   section = ["html", "rss", "markdown"]
   page = ["html", "markdown"]
+  term = ["html"]
 
 # Machine-readable variants for AI agents and LLM tools. The markdown format
 # emits a raw-Markdown sibling of every page (page/index.md); the home page also
@@ -69,9 +85,9 @@ ignoreFiles = ["themes/geekboot/content/.*", "README.md"]
     lineNumbersInTable = false
 
 [module]
-  # Content, example manifests, and API definitions live in the modelplane
-  # repo, pulled in as the modelplane/ submodule. Everything else - layouts,
-  # the theme, the data that groups the API reference - is local to this repo.
+  [module.hugoVersion]
+    min = "0.158.0"
+
   [[module.mounts]]
     source = "modelplane/docs/content"
     target = "content"
@@ -81,16 +97,16 @@ ignoreFiles = ["themes/geekboot/content/.*", "README.md"]
   [[module.mounts]]
     source = "modelplane/docs/content"
     target = "assets/content"
-    includeFiles = ["**/**.png", "**/**.jpg", "**/**.jpeg", "**/**.gif"]
+    files = ["**/**.png", "**/**.jpg", "**/**.jpeg", "**/**.gif"]
   # Defining any data mount below suppresses Hugo's default data mount, so mount
   # the local data dir explicitly (holds apigroups.yaml, which groups the API
-  # reference). Accessible as site.Data.apigroups.
+  # reference). Accessible as hugo.Data.apigroups.
   [[module.mounts]]
     source = "data"
     target = "data"
   # Mount the APIs directory as Hugo data so the reference partials can read
   # definition.yaml files without a separate generation step.
-  # Accessible as site.Data.apis.crds.<plural>.definition
+  # Accessible as hugo.Data.apis.crds.<plural>.definition
   [[module.mounts]]
     source = "modelplane/apis"
     target = "data/apis/crds"
@@ -101,8 +117,7 @@ ignoreFiles = ["themes/geekboot/content/.*", "README.md"]
     target = "assets/apis"
   # Mount the manifests directory as assets so the manifests shortcode can read
   # raw YAML (preserving comments) via resources.Get "examples/<path>.yaml". The
-  # files live under modelplane/docs/manifests/<section>/, one subtree per docs
-  # section.
+  # files live under docs/manifests/<section>/, one subtree per docs section.
   [[module.mounts]]
     source = "modelplane/docs/manifests"
     target = "assets/examples"
@@ -116,13 +131,6 @@ ignoreFiles = ["themes/geekboot/content/.*", "README.md"]
     # needs it: LightningCSS is a native addon. "tailwindcss" is Hugo's
     # default; keep it when overriding the list.
     allowAddons = ["postcss", "tailwindcss"]
-    # PostCSS resolves its plugins through NODE_PATH, which points at a
-    # node_modules that Nix builds and the derivation symlinks in. Node resolves
-    # a symlink to its real path before checking permissions, so Hugo's default
-    # allowRead of ["."] - the project directory - doesn't reach it. Granting
-    # the store keeps the read confined to content Nix put there. See
-    # nix/docs.nix.
-    allowRead = [".", "/nix/store"]
 
 [params]
   docs = true

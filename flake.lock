@@ -1,39 +1,5 @@
 {
   "nodes": {
-    "content-0-2": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1786474863,
-        "narHash": "sha256-9ZNpgFKyY2N3XA+dB3/1KnFnGn+AwH+9rfgwB+CB4Nk=",
-        "owner": "tr0njavolta",
-        "repo": "mp-content-test",
-        "rev": "27c29a0359429a90f6c4be9cb8da86cf9bf4241c",
-        "type": "github"
-      },
-      "original": {
-        "owner": "tr0njavolta",
-        "ref": "release-0.2",
-        "repo": "mp-content-test",
-        "type": "github"
-      }
-    },
-    "content-0-3": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1786732478,
-        "narHash": "sha256-plgqy/Mga5RSTPuhIRndw8vna0IktxcmNZ7uUQbkOHQ=",
-        "owner": "tr0njavolta",
-        "repo": "mp-content-test",
-        "rev": "90ba117d8e586c6814e4215e2b4d3a019f492305",
-        "type": "github"
-      },
-      "original": {
-        "owner": "tr0njavolta",
-        "ref": "release-0.3",
-        "repo": "mp-content-test",
-        "type": "github"
-      }
-    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1787204541,
@@ -52,8 +18,6 @@
     },
     "root": {
       "inputs": {
-        "content-0-2": "content-0-2",
-        "content-0-3": "content-0-3",
         "nixpkgs": "nixpkgs"
       }
     }
