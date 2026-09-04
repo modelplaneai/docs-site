@@ -11,19 +11,24 @@ and `apis/`. Edit pages there, not here.
 
 ## Versions
 
-Every version is built from this one branch, by one Vercel project, and served
-under its own path prefix:
+Every version is built from this one branch, by one Vercel project. The latest
+release is the site - served bare at the root, with no prefix anywhere in its
+URLs. Every other version is served under its own prefix and carries a banner
+saying it is not the latest.
 
-| Path | Built from |
-|---|---|
-| `/main/` | `modelplaneai/modelplane@main` |
-| `/v0.3/`, `/v0.2/`, `/v0.1/` | `@release-0.3`, `@release-0.2`, `@release-0.1` |
+| URL | Built from | Banner |
+|---|---|---|
+| `/getting-started/` | `@release-0.3` (`latest`) | none |
+| `/main/getting-started/` | `@main` | "unreleased version" |
+| `/v0.2/…`, `/v0.1/…` | `@release-0.2`, `@release-0.1` | "older version" |
 
-The apex redirects to whichever version is `latest`.
+So a version's prefix is not a fixed property of it: `0.3` is bare today and
+moves to `/v0.3/` the day `0.4` ships. That is why `latest` lives in the
+version list rather than being baked into a path anywhere.
 
-`data/docversions.json` is the whole list. `build.sh` clones each branch and
-builds it; the version dropdown reads the same file, so the builds and the
-switcher cannot drift.
+`themes/geekboot/data/docversions.json` is the whole list. `build.sh` clones
+each branch and builds it; the version dropdown and the banners read the same file, so the
+builds, the switcher, and "which one is current" cannot drift.
 
 ### Adding a version
 
@@ -33,9 +38,10 @@ One line, and nothing else:
 { "version": "0.4", "path": "v0.4", "branch": "release-0.4" }
 ```
 
-Bump `latest` in the same file if the new one is the latest release. There is
-no content pin to compute, no hash, no submodule, no flake input, no release
-branch in this repo, and no second Vercel project.
+Bump `latest` in the same file if the new one is the latest release - that one
+edit moves it to the root and moves the version it replaces to its own prefix.
+There is no content pin to compute, no hash, no submodule, no flake input, no
+release branch in this repo, and no second Vercel project.
 
 Because nothing is pinned, **publishing new prose is a redeploy** - every build
 reads the tip of the branch it tracks. A theme or layout fix reaches every
@@ -73,11 +79,24 @@ reference's data and assets, and `docs/manifests` as the example YAML the
 `build.sh` swaps the checkout under that fixed path once per version, so no
 mount is per-version and no config is templated.
 
-One wrinkle worth knowing: the prose is written as though the site sat at the
-domain root (`/getting-started/`), because it used to. Every root-absolute link
-and shortcode URL is prefixed with the current version at render time by
-`partials/utils/docurl.html`. Nothing has to be back-ported to content on
-release branches already cut - which is the point.
+Two wrinkles worth knowing, both from the prose being written as though the
+site sat at the domain root (`/getting-started/`) - which for the latest
+release it does:
+
+- **Prefixing.** For any other version, a root-absolute link in the prose would
+  jump out of the version being read. `partials/utils/docurl.html` prefixes
+  them at render time, so nothing has to be back-ported to content on release
+  branches already cut. It is a no-op for the latest release. Note that
+  Hugo's `relURL` only prepends the baseURL subdirectory for a *relative*
+  input - a leading slash makes it a no-op - which is the whole reason that
+  partial exists.
+- **Absolute URLs.** The `kubectl apply -f …` commands are copied out of the
+  page and pasted into a shell, so they cannot be root-relative. `.Permalink`
+  is only absolute when `baseURL` is, and preview deployments build
+  root-relative on purpose (several hostnames reach one deployment, so baking
+  in a single host breaks the assets). `partials/utils/absurl.html` builds
+  those against `params.site`, the canonical root, so the command names the
+  published file whatever renders the page.
 
 ## Rebuilding the JavaScript bundle
 

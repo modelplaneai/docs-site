@@ -186,6 +186,7 @@
 
       <div class="bd-content ps-lg-2 DocSearch-content">
         <div class="bd-content-inner">
+        {{ partial "version-alert" . }}
         {{ if $isCrd }}
           {{ partial "crd-single" . }}
           {{ partial "page-pagination" . }}

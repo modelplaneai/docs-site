@@ -1,0 +1,9 @@
+{{/* An absolute URL for a published resource, for commands a reader copies
+     out of the page and runs. .Permalink would do it, but only when baseURL is
+     absolute: preview deployments build root-relative (several hostnames reach
+     one deployment, so baking in a single host breaks the assets), and there
+     .Permalink degrades to "/v0.3/examples/x.yaml" - a path kubectl cannot
+     fetch. params.site is the canonical root, passed to every build by
+     build.sh, so the command always names the published file. */}}
+{{- $rel := .RelPermalink -}}
+{{- return printf "%s%s" (strings.TrimSuffix "/" site.Params.site) $rel -}}

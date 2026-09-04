@@ -33,7 +33,7 @@
 
 {{- $apply   := .Get "apply"   | default "true" -}}
 {{- $command := .Get "command" | default "kubectl apply -f" -}}
-{{- $url     := ($resource | resources.Copy (printf "examples/%s" $path)).Permalink -}}
+{{- $url     := partial "utils/absurl" ($resource | resources.Copy (printf "examples/%s" $path)) -}}
 {{- $applyCmd := printf "%s %s" $command $url -}}
 
 <div class="gdoc-manifest">

@@ -8,7 +8,7 @@
   ],
   "sitemap_alternate_links": true,
   "stop_urls": [
-    "docs.modelplane.ai/[^/]+/recipes/(vendor|cloud)/"
+    "docs.modelplane.ai/recipes/(vendor|cloud)/"
   ],
   "selectors": {
     "lvl0": {

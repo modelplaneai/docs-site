@@ -18,4 +18,4 @@
   {{- errorf "manifest-url shortcode: examples/%s not found (called from %s)" $path .Position -}}
 {{- end -}}
 
-{{- ($resource | resources.Copy (printf "examples/%s" $path)).Permalink -}}
+{{- partial "utils/absurl" ($resource | resources.Copy (printf "examples/%s" $path)) -}}

@@ -1,5 +1,6 @@
 {
   "repo": "modelplaneai/modelplane",
+  "site": "https://docs.modelplane.ai/",
   "latest": "0.3",
   "versions": [
     { "version": "main", "path": "main", "branch": "main" },

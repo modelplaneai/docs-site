@@ -1,0 +1,20 @@
+{{/* The "you are not reading the latest release" banner.
+
+     The latest release is served bare at the domain root and gets no banner at
+     all - it is the default thing to be reading. Every other build says so:
+     main because it documents unreleased code, and an archived release because
+     the reader probably wants the current one.
+
+     Which version this build is comes from params.version, set per build by
+     build.sh; the latest release comes from data/docversions.json. Neither is
+     committed per release branch, so both stay right without anyone editing a
+     branch. */}}
+{{- $cur := .Site.Params.version -}}
+{{- $latest := hugo.Data.docversions.latest -}}
+{{- if ne $cur $latest -}}
+  {{- if eq $cur "main" -}}
+    {{ partial "master-version-alert" . }}
+  {{- else -}}
+    {{ partial "old-version-alert" . }}
+  {{- end -}}
+{{- end -}}

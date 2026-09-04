@@ -15,13 +15,20 @@
 
 # Build every documented version of the site into public/.
 #
-# No prose lives in this repo. Each entry in data/docversions.json names a branch
-# of the modelplane repo; this script shallow-clones that branch into
-# modelplane/ and runs Hugo against it, writing the result under public/<path>/.
-# One Vercel project, rooted at this repo, serves all of them.
+# No prose lives in this repo. Each entry in the version list
+# (themes/geekboot/data/docversions.json) names a branch of the modelplane
+# repo; this script shallow-clones that branch into modelplane/ and runs Hugo
+# against it. One Vercel project, rooted at this repo, serves all of them.
 #
-# Adding a version is one line in data/docversions.json: no content pin, no hash,
-# no submodule, no flake input, no second Vercel project. Publishing new prose
+# The latest release is the site: it builds to public/ and is served bare, at
+# the domain root, with no prefix anywhere in its URLs. Every other version
+# builds to public/<path>/ and carries a banner saying it is not the latest.
+# So the prefix a version is served under is not a fixed property of it - v0.3
+# is bare today and moves to /v0.3/ the day 0.4 ships, which is why "latest"
+# lives in the version list rather than being baked into a path.
+#
+# Adding a version is one line in that file: no content pin, no hash, no
+# submodule, no flake input, no second Vercel project. Publishing new prose
 # is a redeploy - every build reads the tip of the branch it tracks.
 #
 # Vercel runs this as the buildCommand (see vercel.json). It is the same script
@@ -89,28 +96,47 @@ fi
 # produces ".../aiv0.3/".
 root="${root%/}/"
 
-# data/docversions.json is read here and by the version dropdown, so the builds
-# and the switcher cannot drift. Parsed with node, which every environment that
+# The version list is read here and by the version dropdown, so the builds and
+# the switcher cannot drift. Parsed with node, which every environment that
 # runs this already has; jq is not on Vercel's build image.
 read_json() { node -p "$1"; }
-repo=$(read_json 'require("./data/docversions.json").repo')
-latest=$(read_json 'require("./data/docversions.json").latest')
-latest_path=$(read_json 'const d=require("./data/docversions.json");
-	const v=d.versions.find(v=>v.version===d.latest);
-	if(!v) throw new Error(`latest "${d.latest}" is not in the versions list`);
-	v.path')
+repo=$(read_json 'require("./themes/geekboot/data/docversions.json").repo')
+latest=$(read_json 'require("./themes/geekboot/data/docversions.json").latest')
+# The canonical site, passed to every build so that URLs a reader copies out of
+# the page - the kubectl apply commands - are absolute and point at the
+# published file even when the deployment rendering them is a preview whose own
+# baseURL is root-relative.
+site=$(read_json 'require("./themes/geekboot/data/docversions.json").site')
+read_json 'const d=require("./themes/geekboot/data/docversions.json");
+	if(!d.versions.some(v=>v.version===d.latest))
+		throw new Error(`latest "${d.latest}" is not in the versions list`);
+	""' >/dev/null
 
 # Write the list to a file rather than piping it: bash process substitution
 # needs /dev/fd, which Vercel's Amazon Linux 2023 image does not provide.
 versions=$(mktemp)
 trap 'rm -f "$versions"' EXIT
-read_json 'require("./data/docversions.json").versions
-	.map(v=>[v.version,v.path,v.branch].join("\t")).join("\n")' > "$versions"
+# Latest first: it builds into public/ itself, so it must not run after the
+# versions that write into subdirectories of it.
+read_json 'const d=require("./themes/geekboot/data/docversions.json");
+	const k=v=>v.version===d.latest?0:1;
+	[...d.versions].sort((a,b)=>k(a)-k(b))
+		.map(v=>[v.version,v.path,v.branch].join("\t")).join("\n")' > "$versions"
 
 rm -rf public
 while IFS=$'\t' read -r version path branch; do
 	[ -n "$path" ] || continue
-	echo "==> /$path/  from $repo@$branch"
+
+	# The latest release is served bare at the root; everything else under its
+	# own prefix.
+	if [ "$version" = "$latest" ]; then
+		prefix=""
+		dest="public"
+	else
+		prefix="$path/"
+		dest="public/$path"
+	fi
+	echo "==> /$prefix  from $repo@$branch"
 
 	# A fresh shallow, sparse clone per version, narrowed to exactly the four
 	# trees hugo.toml mounts. Release branches cut before the site moved here
@@ -127,27 +153,9 @@ while IFS=$'\t' read -r version path branch; do
 	# what lets one branch of this repo build every version, and it keeps the
 	# dropdown's active entry and the "not the latest release" banner accurate
 	# without a release branch ever editing hugo.toml.
-	HUGO_BASEURL="${root}${path}/" \
+	HUGO_BASEURL="${root}${prefix}" \
 	HUGO_PARAMS_VERSION="$version" \
-	HUGO_PARAMS_PATH="$path" \
 	HUGO_PARAMS_BRANCH="$branch" \
-	HUGO_PARAMS_LATEST="$latest" \
-		hugo --minify --destination "public/$path"
+	HUGO_PARAMS_SITE="$site" \
+		hugo --minify --destination "$dest"
 done < "$versions"
-
-# The apex holds no build of its own; it points at the latest release.
-cat > public/index.html <<HTML
-<!doctype html>
-<meta charset="utf-8">
-<title>Modelplane documentation</title>
-<meta http-equiv="refresh" content="0; url=/${latest_path}/">
-<link rel="canonical" href="/${latest_path}/">
-<a href="/${latest_path}/">Modelplane documentation</a>
-HTML
-
-# These four are only ever looked for at a site root: crawlers fetch
-# /robots.txt, the llms.txt convention puts the corpus at the apex, and
-# api/mcp.js fetches /llms.json. Serve the latest release's copies there.
-for f in robots.txt llms.txt llms-full.txt llms.json; do
-	cp "public/${latest_path}/$f" "public/$f"
-done

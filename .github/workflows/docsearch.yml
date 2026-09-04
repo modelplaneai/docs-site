@@ -5,8 +5,9 @@ name: DocSearch index
 # the deployed site over HTTP, so it is independent of the build here.
 #
 # Only the latest release is indexed - searching the docs should not return
-# four versions of every page. Which release that is comes from
-# data/docversions.json, so cutting a release needs no edit here.
+# four versions of every page. The latest release is served bare at the root,
+# so the crawl starts at the apex and stops at the archived versions' prefixes,
+# read from themes/geekboot/data/docversions.json so cutting a release needs no edit here.
 on:
   workflow_dispatch: {}
   schedule:
@@ -36,11 +37,15 @@ jobs:
         if: env.ALGOLIA_ADMIN_KEY != ''
         run: |
           config=$(node -e '
-            const d = require("./data/docversions.json");
+            const d = require("./themes/geekboot/data/docversions.json");
             const c = require("./utils/docsearch/config.json");
-            const p = d.versions.find(v => v.version === d.latest).path;
-            c.start_urls = [`https://docs.modelplane.ai/${p}/`];
-            c.sitemap_urls = [`https://docs.modelplane.ai/${p}/sitemap.xml`];
+            const archived = d.versions
+              .filter(v => v.version !== d.latest)
+              .map(v => v.path.replace(/[.]/g, "\\."))
+              .join("|");
+            c.start_urls = ["https://docs.modelplane.ai/"];
+            c.sitemap_urls = ["https://docs.modelplane.ai/sitemap.xml"];
+            c.stop_urls = [`docs.modelplane.ai/(${archived})/`];
             process.stdout.write(JSON.stringify(c));
           ')
           docker run --rm \

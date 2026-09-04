@@ -91,6 +91,7 @@
       </div>
       <div class="bd-content ps-lg-2 DocSearch-content">
         <div class="bd-content-inner">
+        {{ partial "version-alert" . }}
           <div class="mp-recipe-rows">
             {{ range .Pages.ByWeight }}
               {{ partial "recipe-row" . }}
