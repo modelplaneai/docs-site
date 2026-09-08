@@ -98,6 +98,24 @@ appears at the next build of this repo, but nothing here triggers that build.
 Until a deploy hook is wired up, run one by pushing to this repo or
 redeploying from the Vercel dashboard.
 
+### Preview a content pull request
+
+A pull request in the modelplane repo builds its own preview of the rendered
+site: `vercel.json` there clones this repo and runs `build.sh` with
+`CONTENT_DIR` pointing at the checkout. `build.sh` then builds that one
+checkout and stops, instead of cloning the branches in the version list. The
+same thing locally, against a checkout:
+
+```console
+CONTENT_DIR=~/src/modelplane bash build.sh
+```
+
+The result is one version at the root, built as `main`, so it carries the
+"unreleased version" banner. `params.branch` comes from
+`VERCEL_GIT_COMMIT_REF`, so "view page source" links point at the branch under
+review. The version switcher still lists every version and those links 404 on
+a preview that contains one.
+
 ### Rebuild the JavaScript bundle
 
 The bundle in `themes/geekboot/assets/js` is committed, so the site build runs
@@ -124,10 +142,15 @@ git diff ../../themes/geekboot/assets/js
    directory, shallow and sparse:
 
    ```bash
-   git clone --depth 1 --single-branch --branch "$branch" --sparse \
+   git clone --depth 1 --single-branch --branch "$branch" \
+       --sparse --filter=blob:none \
        "https://github.com/${repo}.git" "$src/modelplane"
    git -C "$src/modelplane" sparse-checkout set docs/content docs/data docs/manifests apis
    ```
+
+   `--sparse` limits the working tree to those four directories and
+   `--filter=blob:none` limits the download to their blobs, so the rest of the
+   repo is never transferred.
 
    It then logs the resolved commit. Nothing here pins a content revision, so
    the build log is the only record of what was deployed.

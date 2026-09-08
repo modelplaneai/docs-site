@@ -35,6 +35,7 @@
 #   1. install Hugo
 #   2. install node_modules for the PostCSS pipeline
 #   3. work out the baseURL
+#  3a. with CONTENT_DIR set, build that checkout alone and stop
 #   4. read the version list
 #   5. build the versions, all at once
 #   6. assemble public/
@@ -122,6 +123,29 @@ fi
 # "v0.3/" produce "https://docs.modelplane.aiv0.3/".
 root="${root%/}/"
 
+# --- 3a. Preview a content checkout ---------------------------------------
+#
+# A pull request in the content repo builds its own preview: vercel.json there
+# clones this repo and runs this script with CONTENT_DIR pointing at the
+# checkout. One version, at the root, cloning nothing - the rest of this script
+# is about the version list, which a single branch under review has no use for.
+#
+# The version and site defaults come from hugo.toml, so the preview carries the
+# "unreleased version" banner. Only the branch is passed, for the "view page
+# source" links; VERCEL_GIT_COMMIT_REF is the branch the pull request is from.
+#
+# ponytail: the version dropdown still lists every version, and those links
+# 404 on a preview that built one. Fine for a preview of one branch; pass the
+# list through if it ever isn't.
+
+if [ -n "${CONTENT_DIR:-}" ]; then
+	ln -sfn "$CONTENT_DIR" modelplane
+	rm -rf public
+	exec env HUGO_BASEURL="$root" \
+		HUGO_PARAMS_BRANCH="${VERCEL_GIT_COMMIT_REF:-main}" \
+		hugo --minify --destination public
+fi
+
 # --- 4. Read the version list ---------------------------------------------
 #
 # The version dropdown and the "not the latest release" banner read the same
@@ -187,7 +211,24 @@ build_version() {
 	cp -R hugo.toml postcss.config.js themes "$src/"
 	ln -s "$PWD/node_modules" "$src/node_modules"
 
-	git clone --quiet --depth 1 --single-branch --branch "$branch" --sparse \
+	# Fetch only the four directories hugo.toml mounts. --sparse limits the
+	# working tree; --filter=blob:none limits the download, so blobs for the
+	# rest of the repo are never transferred (964K of .git rather than 3.8M,
+	# for a working tree verified byte-identical either way). Whole build,
+	# three interleaved runs each: 19-20s with the filter, 23-24s without.
+	#
+	# A partial clone fetches blobs on demand, which adds round trips, so this
+	# is more exposed to a slow network than a plain clone. One run during a
+	# network stall took 212s.
+	#
+	# Cone-mode sparse-checkout keeps files that sit directly in a parent of a
+	# listed path, so docs/hugo.toml and docs/vercel.json still appear on
+	# release branches cut before the site moved here. Nothing mounts them and
+	# Hugo reads its config from --source, so they are inert. The directories
+	# are excluded, which is what matters: docs/themes would otherwise be a
+	# second copy of the theme in the build tree.
+	git clone --quiet --depth 1 --single-branch --branch "$branch" \
+		--sparse --filter=blob:none \
 		"https://github.com/${repo}.git" "$src/modelplane"
 	git -C "$src/modelplane" sparse-checkout set \
 		docs/content docs/data docs/manifests apis
