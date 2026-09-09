@@ -1,0 +1,72 @@
+name: Content
+
+# Deploys on behalf of the content repo, which owns the prose but knows nothing
+# about Hugo or Vercel. It dispatches here on a docs pull request and on a docs
+# merge, and this workflow is the only thing that talks to Vercel:
+#
+#   content-preview    build one revision of the content, as a preview
+#   content-published  rebuild every version and promote it to production
+#
+# Nothing here writes back to the content repo. A preview is aliased to a
+# hostname derived from the pull request number, which that repo can post
+# itself the moment it dispatches, before this build finishes.
+#
+# The deployment is built on Vercel rather than here, so the project's own
+# vercel.json applies - the /mcp function and the per-version rewrites included.
+# CONTENT_REF is passed as a build environment variable and read by build.sh.
+on:
+  repository_dispatch:
+    types: [content-preview, content-published]
+  # For rerunning a preview by hand: pass the same payload values.
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Content revision to preview (sha or branch)
+        type: string
+        required: true
+      pr:
+        description: Content pull request number, for the preview hostname
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+# One deployment per pull request at a time; a new push supersedes the build
+# still running for the old one.
+concurrency:
+  group: content-${{ github.event.client_payload.pr || inputs.pr || 'production' }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      CONTENT_REF: ${{ github.event.client_payload.ref || inputs.ref }}
+      PR: ${{ github.event.client_payload.pr || inputs.pr }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # A preview of one revision, aliased to the hostname the content repo
+      # already posted. --build-env reaches build.sh's step 4a.
+      - name: Deploy preview
+        if: github.event.action != 'content-published'
+        run: |
+          url=$(npx --yes vercel@latest deploy --token="$VERCEL_TOKEN" \
+            --build-env "CONTENT_REF=$CONTENT_REF" \
+            --meta "contentRef=$CONTENT_REF" --meta "contentPr=$PR")
+          echo "Deployed $url"
+          npx --yes vercel@latest alias set "$url" \
+            "modelplane-docs-pr-${PR}.vercel.app" --token="$VERCEL_TOKEN"
+
+      # Production reads the tip of every branch in the version list, so a
+      # merge in the content repo publishes by rebuilding, with no revision
+      # pinned anywhere.
+      - name: Deploy production
+        if: github.event.action == 'content-published'
+        run: npx --yes vercel@latest deploy --prod --token="$VERCEL_TOKEN"

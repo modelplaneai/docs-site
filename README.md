@@ -19,6 +19,7 @@ and `apis/`. Edit pages there.
 | `utils/` | The webpack build, the link checker, and the DocSearch config. |
 | `api/mcp.js` | The docs MCP server, deployed as a Vercel function. |
 | `vercel.json` | Build command, output directory, and rewrites. |
+| `flake.nix` | The `preview` app, so a content checkout can serve itself. |
 
 ## URL layout
 
@@ -100,21 +101,39 @@ redeploying from the Vercel dashboard.
 
 ### Preview a content pull request
 
-A pull request in the modelplane repo builds its own preview of the rendered
-site: `vercel.json` there clones this repo and runs `build.sh` with
-`CONTENT_DIR` pointing at the checkout. `build.sh` then builds that one
-checkout and stops, instead of cloning the branches in the version list. The
-same thing locally, against a checkout:
+Everything the modelplane repo needs is here; it holds no Hugo config, no
+Vercel project, and no copy of this repo. Two entry points serve it, both
+building one version at the root, built as `main`, so a preview carries the
+"unreleased version" banner:
 
-```console
-CONTENT_DIR=~/src/modelplane bash build.sh
-```
+| Entry point | Content from | Used by |
+|---|---|---|
+| `nix run github:modelplaneai/docs-site#preview` | the working directory | a writer, locally |
+| `CONTENT_REF=<sha> bash build.sh` | a fetch of that revision | the `Content` workflow |
 
-The result is one version at the root, built as `main`, so it carries the
-"unreleased version" banner. `params.branch` comes from
-`VERCEL_GIT_COMMIT_REF`, so "view page source" links point at the branch under
-review. The version switcher still lists every version and those links 404 on
-a preview that contains one.
+`build.sh` reads `CONTENT_DIR` (a checkout on disk) or `CONTENT_REF` (a
+revision to fetch) in step 4a and stops there, instead of cloning the branches
+in the version list. `params.branch` becomes the revision or branch built, so
+"view page source" links land on the code under review. The version switcher
+still lists every version and those links 404 on a preview that contains one.
+
+`.github/workflows/content.yml` is what the modelplane repo dispatches to. It
+holds the Vercel credentials and is the only thing that deploys:
+
+| Dispatch | Effect |
+|---|---|
+| `content-preview` (`ref`, `pr`) | deploys that revision as a preview, aliased to `modelplane-docs-pr-<pr>.vercel.app` |
+| `content-published` | rebuilds every version and promotes it to production |
+
+The alias is why nothing here needs write access to the modelplane repo: the
+hostname follows from the pull request number, so that repo posts the link
+itself when it dispatches, before this build finishes. Deploys run on Vercel
+rather than in the workflow, so `vercel.json` still applies - `/mcp` and the
+per-version rewrites included.
+
+`content-published` is also what publishes a content merge. Nothing here pins a
+content revision, so production is a rebuild that reads the tip of every branch
+in the version list.
 
 ### Rebuild the JavaScript bundle
 

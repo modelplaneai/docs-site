@@ -35,8 +35,8 @@
 #   1. install Hugo
 #   2. install node_modules for the PostCSS pipeline
 #   3. work out the baseURL
-#  3a. with CONTENT_DIR set, build that checkout alone and stop
 #   4. read the version list
+#  4a. with CONTENT_DIR or CONTENT_REF set, build that content alone and stop
 #   5. build the versions, all at once
 #   6. assemble public/
 #
@@ -123,29 +123,6 @@ fi
 # "v0.3/" produce "https://docs.modelplane.aiv0.3/".
 root="${root%/}/"
 
-# --- 3a. Preview a content checkout ---------------------------------------
-#
-# A pull request in the content repo builds its own preview: vercel.json there
-# clones this repo and runs this script with CONTENT_DIR pointing at the
-# checkout. One version, at the root, cloning nothing - the rest of this script
-# is about the version list, which a single branch under review has no use for.
-#
-# The version and site defaults come from hugo.toml, so the preview carries the
-# "unreleased version" banner. Only the branch is passed, for the "view page
-# source" links; VERCEL_GIT_COMMIT_REF is the branch the pull request is from.
-#
-# ponytail: the version dropdown still lists every version, and those links
-# 404 on a preview that built one. Fine for a preview of one branch; pass the
-# list through if it ever isn't.
-
-if [ -n "${CONTENT_DIR:-}" ]; then
-	ln -sfn "$CONTENT_DIR" modelplane
-	rm -rf public
-	exec env HUGO_BASEURL="$root" \
-		HUGO_PARAMS_BRANCH="${VERCEL_GIT_COMMIT_REF:-main}" \
-		hugo --minify --destination public
-fi
-
 # --- 4. Read the version list ---------------------------------------------
 #
 # The version dropdown and the "not the latest release" banner read the same
@@ -163,6 +140,44 @@ latest=$(read_json "require('$versions_json').latest")
 # they need absolute URLs even when this build's baseURL is root-relative. See
 # themes/geekboot/layouts/partials/utils/absurl.html.
 site=$(read_json "require('$versions_json').site")
+
+# --- 4a. Preview one revision of the content -----------------------------
+#
+# A pull request in the content repo previews itself through this script rather
+# than building the site itself: one version, at the root, no version list.
+# CONTENT_DIR is a checkout already on disk - what 'nix run .#preview' uses, and
+# what a local run against a working tree uses. CONTENT_REF is a revision to
+# fetch, which is how the preview workflow builds a pull request: only this repo
+# is checked out on the builder, so the content has to be fetched here.
+#
+# The version and site defaults come from hugo.toml, so a preview carries the
+# "unreleased version" banner. Only params.branch is passed, for the "view page
+# source" links: the revision under review, or the branch Vercel is building.
+#
+# ponytail: the version dropdown still lists every version, and those links
+# 404 on a preview that built one. Fine for a preview of one branch; pass the
+# list through if it ever isn't.
+
+if [ -n "${CONTENT_DIR:-}" ] || [ -n "${CONTENT_REF:-}" ]; then
+	if [ -n "${CONTENT_DIR:-}" ]; then
+		ln -sfn "$CONTENT_DIR" modelplane
+	else
+		# A revision cannot be cloned by name, so fetch it into an empty repo.
+		# Same sparse checkout and blob filter as the version builds below.
+		git init --quiet modelplane
+		git -C modelplane remote add origin "https://github.com/${repo}.git"
+		git -C modelplane sparse-checkout set --cone \
+			docs/content docs/data docs/manifests apis
+		git -C modelplane fetch --quiet --depth 1 --filter=blob:none \
+			origin "$CONTENT_REF"
+		git -C modelplane checkout --quiet FETCH_HEAD
+	fi
+
+	rm -rf public
+	exec env HUGO_BASEURL="$root" \
+		HUGO_PARAMS_BRANCH="${CONTENT_REF:-${VERCEL_GIT_COMMIT_REF:-main}}" \
+		hugo --minify --destination public
+fi
 
 # Fail here rather than producing a site with no root.
 read_json "const d = require('$versions_json');
