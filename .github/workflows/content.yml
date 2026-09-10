@@ -21,7 +21,7 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: Content revision to preview (sha or branch)
+        description: Content revision to preview (branch, or a full 40-character sha)
         type: string
         required: true
       pr:

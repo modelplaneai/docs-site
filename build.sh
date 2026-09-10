@@ -145,10 +145,10 @@ site=$(read_json "require('$versions_json').site")
 #
 # A pull request in the content repo previews itself through this script rather
 # than building the site itself: one version, at the root, no version list.
-# CONTENT_DIR is a checkout already on disk - what 'nix run .#preview' uses, and
-# what a local run against a working tree uses. CONTENT_REF is a revision to
-# fetch, which is how the preview workflow builds a pull request: only this repo
-# is checked out on the builder, so the content has to be fetched here.
+# CONTENT_DIR is a checkout already on disk, for a local build against a working
+# tree. CONTENT_REF is a revision to fetch, which is how the preview workflow
+# builds a pull request: only this repo is checked out on the builder, so the
+# content has to be fetched here.
 #
 # The version and site defaults come from hugo.toml, so a preview carries the
 # "unreleased version" banner. Only params.branch is passed, for the "view page
@@ -160,10 +160,21 @@ site=$(read_json "require('$versions_json').site")
 
 if [ -n "${CONTENT_DIR:-}" ] || [ -n "${CONTENT_REF:-}" ]; then
 	if [ -n "${CONTENT_DIR:-}" ]; then
-		ln -sfn "$CONTENT_DIR" modelplane
+		# Copy rather than symlink. Hugo runs PostCSS under Node's permission
+		# model, and Node refuses to read through a symlink whose target is
+		# outside the project: the build dies in the CSS pipeline. Copying only
+		# the mounted directories also keeps anything else in the checkout -
+		# a nix `result` link, say - out of the tree Node walks.
+		rm -rf modelplane
+		mkdir -p modelplane/docs
+		cp -R "$CONTENT_DIR/docs/content" "$CONTENT_DIR/docs/data" \
+			"$CONTENT_DIR/docs/manifests" modelplane/docs/
+		cp -R "$CONTENT_DIR/apis" modelplane/
 	else
 		# A revision cannot be cloned by name, so fetch it into an empty repo.
 		# Same sparse checkout and blob filter as the version builds below.
+		# A sha has to be the full 40 characters: git asks the server for the
+		# ref by name, and an abbreviated one is not a ref.
 		git init --quiet modelplane
 		git -C modelplane remote add origin "https://github.com/${repo}.git"
 		git -C modelplane sparse-checkout set --cone \

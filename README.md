@@ -94,10 +94,10 @@ to it, and repoints the DocSearch crawl.
 ### Publish content changes
 
 Nothing in this repo is pinned to a content revision, so each build reads the
-current tip of every branch. A content merge in the modelplane repo therefore
-appears at the next build of this repo, but nothing here triggers that build.
-Until a deploy hook is wired up, run one by pushing to this repo or
-redeploying from the Vercel dashboard.
+current tip of every branch. A content merge in the modelplane repo dispatches
+`content-published` here, and that rebuild is the publish - see "Preview a
+content pull request" below. A change to the theme or the build publishes the
+same way: push to `main` and Vercel rebuilds every version.
 
 ### Preview a content pull request
 
