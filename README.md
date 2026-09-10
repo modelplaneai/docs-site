@@ -16,7 +16,7 @@ and `apis/`. Edit pages there.
 | `hugo.toml` | Hugo config, including the mounts that read the content checkout. |
 | `themes/geekboot/` | Templates, SCSS, the JavaScript bundle, static files, and the version list. |
 | `themes/geekboot/data/docversions.json` | The version list. |
-| `utils/` | The webpack build, the link checker, and the DocSearch config. |
+| `utils/` | The webpack build and the link checker. |
 | `api/mcp.js` | The docs MCP server, deployed as a Vercel function. |
 | `vercel.json` | Build command, output directory, and rewrites. |
 | `flake.nix` | The `preview` app, so a content checkout can serve itself. |
@@ -88,8 +88,9 @@ content revision, a checksum, a submodule, or a separate Vercel project.
 ### Change which release is latest
 
 Set `"latest"` in the version list and merge. That moves the new release to the
-root, moves the previous one to its own prefix, adds the "older version" banner
-to it, and repoints the DocSearch crawl.
+root, moves the previous one to its own prefix, and adds the "older version"
+banner to it. The search crawl is configured outside this repo and needs its
+exclusions updated by hand - see "Search" below.
 
 ### Publish content changes
 
@@ -214,6 +215,18 @@ On `main` it runs after the merge, in parallel with Vercel's build, so it
 cannot block a bad deploy. Content is also not pinned, so a passing run says
 nothing about what the content branches contain when Vercel builds later.
 
-`.github/workflows/docsearch.yml` reindexes the deployed site into Algolia
-daily. It crawls the root and stops at the archived versions' prefixes, so only
-the current release is indexed.
+## Search
+
+The search box is Algolia DocSearch, querying application `PQSS9LVZU8`, index
+`Modelplane Docs`. The app id and the public search key are in
+`themes/geekboot/layouts/partials/scripts.html`.
+
+Nothing in this repo fills that index. It is crawled by Algolia's hosted
+crawler, configured in the Algolia dashboard, which proves it owns the domain
+by reading `Algolia-Crawler-Verif` out of `themes/geekboot/layouts/robots.txt`.
+Keep that line.
+
+The crawler therefore has to be edited in the dashboard, not here, in two
+cases: when the URL layout changes, and when a release moves to a new prefix.
+Only the release at the root should be indexed - a crawl that follows
+`/main/`, `/v0.2/` and `/v0.1/` returns four copies of every page.
