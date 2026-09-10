@@ -153,10 +153,6 @@ site=$(read_json "require('$versions_json').site")
 # The version and site defaults come from hugo.toml, so a preview carries the
 # "unreleased version" banner. Only params.branch is passed, for the "view page
 # source" links: the revision under review, or the branch Vercel is building.
-#
-# ponytail: the version dropdown still lists every version, and those links
-# 404 on a preview that built one. Fine for a preview of one branch; pass the
-# list through if it ever isn't.
 
 if [ -n "${CONTENT_DIR:-}" ] || [ -n "${CONTENT_REF:-}" ]; then
 	if [ -n "${CONTENT_DIR:-}" ]; then
