@@ -63,7 +63,7 @@ jobs:
           echo "Deployed $url"
           npx --yes vercel@latest alias set "$url" \
             "modelplane-docs-pr-${PR}.vercel.app" --token="$VERCEL_TOKEN" \
-            --scope=upboundio
+            --scope="$VERCEL_ORG_ID"
 
       # Production reads the tip of every branch in the version list, so a
       # merge in the content repo publishes by rebuilding, with no revision
