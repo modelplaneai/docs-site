@@ -17,6 +17,11 @@ name: Content
 on:
   repository_dispatch:
     types: [content-preview, content-published]
+  # A change here publishes itself: a new version in docversions.json, a theme
+  # fix, a layout change. There is no content revision to dispatch for those,
+  # and every one of them changes what the published site looks like.
+  push:
+    branches: [main]
   # By hand: pass a revision and a pull request number to rerun a preview, or
   # run it with neither to publish. A version bump here - a new entry in
   # docversions.json - has no content change to dispatch, so this is how it
