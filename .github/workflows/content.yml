@@ -17,17 +17,18 @@ name: Content
 on:
   repository_dispatch:
     types: [content-preview, content-published]
-  # For rerunning a preview by hand: pass the same payload values.
+  # By hand: pass a revision and a pull request number to rerun a preview, or
+  # run it with neither to publish. A version bump here - a new entry in
+  # docversions.json - has no content change to dispatch, so this is how it
+  # reaches production.
   workflow_dispatch:
     inputs:
       ref:
         description: Content revision to preview (branch, or a full 40-character sha)
         type: string
-        required: true
       pr:
-        description: Content pull request number, for the preview hostname
+        description: Content pull request number. Leave empty to deploy production.
         type: string
-        required: true
 
 permissions:
   contents: read
@@ -54,8 +55,11 @@ jobs:
 
       # A preview of one revision, aliased to the hostname the content repo
       # already posted. --build-env reaches build.sh's step 4a.
+      # A pull request number means a preview; its absence means production.
+      # content-preview always carries one and content-published never does, so
+      # this covers the dispatches and a manual run alike.
       - name: Deploy preview
-        if: github.event.action != 'content-published'
+        if: env.PR != ''
         run: |
           url=$(npx --yes vercel@latest deploy --token="$VERCEL_TOKEN" \
             --build-env "CONTENT_REF=$CONTENT_REF" \
@@ -74,5 +78,5 @@ jobs:
       # merge in the content repo publishes by rebuilding, with no revision
       # pinned anywhere.
       - name: Deploy production
-        if: github.event.action == 'content-published'
+        if: env.PR == ''
         run: npx --yes vercel@latest deploy --prod --token="$VERCEL_TOKEN"
