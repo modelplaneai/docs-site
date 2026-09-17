@@ -65,10 +65,32 @@ jobs:
       # this covers the dispatches and a manual run alike.
       - name: Deploy preview
         if: env.PR != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
+          # Vercel titles a deployment, and credits an author, from these
+          # reserved github* meta keys. Left unset, the CLI describes the
+          # checkout it is run from, so every preview in the dashboard reads as
+          # this repo's last push by whoever made it, and nothing says which
+          # content revision it is. The commit under review is in another repo,
+          # so it has to be looked up and handed over.
+          repo=$(jq -r .repo themes/geekboot/data/docversions.json)
+          # Out of the checkout: the CLI uploads it, and this is not site source.
+          commit="$RUNNER_TEMP/commit.json"
+          gh api "repos/$repo/commits/$CONTENT_REF" > "$commit"
+          message=$(jq -r '.commit.message | split("\n")[0]' "$commit")
+          author=$(jq -r '.commit.author.name' "$commit")
+          login=$(jq -r '.author.login // ""' "$commit")
           url=$(npx --yes vercel@latest deploy --token="$VERCEL_TOKEN" \
             --build-env "CONTENT_REF=$CONTENT_REF" \
-            --meta "contentRef=$CONTENT_REF" --meta "contentPr=$PR")
+            --meta "contentRef=$CONTENT_REF" --meta "contentPr=$PR" \
+            --meta "githubOrg=${repo%/*}" --meta "githubRepo=${repo#*/}" \
+            --meta "githubCommitOrg=${repo%/*}" --meta "githubCommitRepo=${repo#*/}" \
+            --meta "githubCommitSha=$CONTENT_REF" \
+            --meta "githubCommitRef=refs/pull/$PR/head" \
+            --meta "githubCommitMessage=$message" \
+            --meta "githubCommitAuthorName=$author" \
+            --meta "githubCommitAuthorLogin=$login")
           echo "Deployed $url"
           # Aliased through the API rather than "vercel alias", which loads the
           # token's own user account before anything else - a team-scoped token
