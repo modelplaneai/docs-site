@@ -34,10 +34,13 @@
     </div>
   </div>
   <div class="mp-spec-row">
-    <div class="mp-spec-label">GPU</div>
+    {{/* 0.6 renamed data `gpus` to `accelerators` (adding icons and a CPU
+         entry); release branches already cut still ship `gpus`, so read
+         whichever key the mounted content provides. */}}
+    <div class="mp-spec-label">{{ if $d.accelerators }}Accelerator{{ else }}GPU{{ end }}</div>
     <div class="mp-spec-val">
-      {{ range $d.gpus }}
-        <span class="mp-vchip{{ if in $gpus .name }} is-on{{ end }}"><strong>{{ .name }}</strong>&nbsp;{{ .mem }}</span>
+      {{ range $d.accelerators | default $d.gpus }}
+        <span class="mp-vchip{{ if in $gpus .name }} is-on{{ end }}">{{ if .icon }}{{ partial "brand-tile" (dict "entry" . "class" "mp-brand-tile--xs") }}{{ end }}<strong>{{ .name }}</strong>{{ with .mem }}&nbsp;{{ . }}{{ end }}</span>
       {{ end }}
       {{ with $p.Params.gpunote }}<span class="mp-spec-note">{{ . }}</span>{{ end }}
     </div>
